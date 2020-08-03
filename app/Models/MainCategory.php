@@ -19,7 +19,7 @@ class MainCategory extends Model
     public function scopeSelection($query)
     {
 
-        return $query->select('id', 'translation_lang', 'name', 'slug', 'photo', 'active');
+        return $query->select('id', 'translation_lang', 'translation_of', 'name', 'slug', 'photo', 'active');
 
     }
 
@@ -33,6 +33,19 @@ class MainCategory extends Model
     {
 
         return $this->active == 1 ? 'مفعل' : 'غير مفعل';
+
+    }
+
+    public function categories()
+    {
+
+        return $this->hasMany(self::class, 'translation_of'); // علاقه في نفس الجدول
+    }
+
+    public function vendors()
+    {
+        return $this->hasMany(Vendor::class, 'category_id');
+
 
     }
 

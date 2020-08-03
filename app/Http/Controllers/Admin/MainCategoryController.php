@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MainCategoryRequest;
 use App\Models\MainCategory;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
+use function GuzzleHttp\Psr7\str;
 
 
 class MainCategoryController extends Controller
@@ -120,12 +123,14 @@ class MainCategoryController extends Controller
     {
 
 
-        $category = MainCategory::selection()->find($id);
+        // get specific categories with its translations
+        $mainCategory = MainCategory::with('categories')->selection()->find($id);
+//        return $category;
 
-        if (!$category) {
+        if (!$mainCategory) {
             return redirect()->route('admin.mainCategories')->with('error', 'هذا القسم غير موجود');
         }
-        return view('admin.mainCategories.edit', compact('category'));
+        return view('admin.mainCategories.edit', compact('mainCategory'));
 
     }
 
@@ -153,33 +158,62 @@ class MainCategoryController extends Controller
             }
             MainCategory::where('id', $id)->update([
                 'name' => $category['name'],
-                'active' => $category['active'],
+                'active' => $request->active,
 
-            ]);
-
-            // save image
+            ]);// save image
 
 
             if ($request->has('photo')) {
-                $filePath = uploadImage('mainCategories', $request->photo);
 
+                // delete the old photo from the folder
+                $image = Str::after($main_category->photo, 'assets/');
+                $image = base_path('assets/' . $image);
+                unlink($image);
+
+                // save the newest photo
+                $filePath = uploadImage('mainCategories', $request->photo);
+                MainCategory::where('id', $id)->update([
+                    'photo' => $filePath,
+                ]);
             }
-            MainCategory::where('id', $id)->update([
-                'photo' => $filePath,
-            ]);
+
 
             return redirect()->route('admin.mainCategories')->with('success', 'تم  تحديث البيانات بنجاح');
         } catch (\Exception $exception) {
-            return redirect()->route('admin.mainCategories')->with('error', 'حدث خطأ برجاء المحاوله لاحقا');
+            return redirect()->back()->with('error', 'حدث خطأ برجاء المحاوله لاحقا');
 
         }
 
 
     }
 
-    public function destroy()
+    public function destroy($id)
     {
 
+        try {
+            $category = MainCategory::find($id);
+
+            if (!$category) {
+                return redirect()->route('admin.mainCategories')->with('error', 'هذا القسم غير موجود');
+            }
+            $vendors = $category->vendors();
+            if (isset($vendors) && $vendors->count() > 0) {
+                return redirect()->back()->with('error', 'لا يمكن  حذف هذا القسم');
+            }
+            // delete the  photo from the folder
+
+            $image = Str::after($category->photo, 'assets/');
+            $image = base_path('assets/' . $image);
+            unlink($image);
+
+            $category->delete();
+            return redirect()->route('admin.mainCategories')->with('success', 'تم  حذف البيانات بنجاح');
+
+        } catch (\Exception $exception) {
+            return redirect()->back()->with('error', 'حدث خطأ برجاء المحاوله لاحقا');
+
+
+        }
 
     }
 }
